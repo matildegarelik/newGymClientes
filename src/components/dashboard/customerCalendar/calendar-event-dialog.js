@@ -95,12 +95,17 @@ export const CalendarEventDialog = (props) => {
 
         if (event) {
 
-          await calendarApi.addCustomersToEvent({
-            eventId: event.id,
-            customers: [user.id]
+          const response = await calendarApi.addCustomerToEvent({
+            event: event,
+            user: [user.id]
           });
           dispatch(getCustomerEvents())
-          toast.success('¡Te has apuntado a la clase!');
+          if(response.waitlist){
+            toast.success('¡Te has apuntado a la lista de espera de la clase!');
+          }else{
+            toast.success('¡Te has apuntado a la clase!');
+          }
+          
         } else { if (values.recurrent) {
           await dispatch(createRecurrentEvent(data))
           dispatch(getCustomerEvents())

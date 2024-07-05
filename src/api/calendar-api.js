@@ -206,6 +206,46 @@ async deleteEvent(request) {
     }
   }
 
+  async addCustomerToEvent(request) { // desde página cliente => si la capacidad está llena pasa a lista de espera
+    const {event, user: participants} = request
+    if(event.participants.length<event.capacity){
+      try {
+        const accessToken = localStorage.getItem('accessToken')
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${event.id}/add-participants/`,
+        {participants},
+        {
+          headers:
+          { Authorization: `JWT ${accessToken}`},
+                }, );
+        const event = response.data;
+        event.waitlist=false
+        return event
+      } catch (e){
+        console.log(request)
+        console.log(e)
+        throw new Error(e.response.data.detail);
+      }
+  
+    }else{ // tiene que ir a lista de espera
+      try{
+        const accessToken = localStorage.getItem('accessToken')
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${event.id}/add-to-waitlist/`,
+        {participants},
+        {
+          headers:
+          { Authorization: `JWT ${accessToken}`},
+                }, );
+        const event = response.data;
+        event.waitlist=true;
+        return event
+      } catch (e){
+        console.log(request)
+        console.log(e)
+        throw new Error(e.response.data.detail);
+      }
+    }
+  }
+
   async addAssistCustomersToEvent(request) {
     const {eventId, customers_ok: participants} = request
     try {
