@@ -82,6 +82,7 @@ export const CalendarEventDialog = (props) => {
         .required('Title is required')
     }),
     onSubmit: async (values, helpers) => {
+      const submitType = values.submitType;
       try {
         const data = {
           allDay: values.allDay,
@@ -93,19 +94,21 @@ export const CalendarEventDialog = (props) => {
         }
 
 
-        if (event) {
-
-          const response = await calendarApi.addCustomerToEvent({
-            event: event,
-            user: [user.id]
+        if (event && submitType=='signup') {
+          const response = await calendarApi.addCustomersToEvent({
+            eventId: event.id,
+            customers: [user.id]
           });
           dispatch(getCustomerEvents())
-          if(response.waitlist){
-            toast.success('¡Te has apuntado a la lista de espera de la clase!');
-          }else{
-            toast.success('¡Te has apuntado a la clase!');
-          }
-          
+          toast.success('¡Te has apuntado a la clase!');
+        }else if (event && submitType=='waitlist'){
+          const response = await calendarApi.addAccountsToEventWaitList({
+            eventId: event.id,
+            participants: [user.id]
+          });
+          dispatch(getCustomerEvents())
+          toast.success('¡Te has apuntado a la lista de espera de la clase!');
+
         } else { if (values.recurrent) {
           await dispatch(createRecurrentEvent(data))
           dispatch(getCustomerEvents())
@@ -169,6 +172,24 @@ export const CalendarEventDialog = (props) => {
     }
   };
 
+  const handleDeleteFromWaitlist = async () => {
+    try {
+      if (!event) {
+        return;
+      }
+      await calendarApi.removeAccountFromEventWaitList({
+        eventId: event.id,
+        customers: [user.id]
+      });
+      dispatch(getCustomerEvents())
+      toast.success('Te has desapuntado correctamente de la lista de espera de la clase');
+      onDeleteComplete?.();
+      dispatch(getCustomerEvents())
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <Dialog
       fullWidth
@@ -176,7 +197,13 @@ export const CalendarEventDialog = (props) => {
       onClose={onClose}
       open={!!open}
     >
-      <form onSubmit={formik.handleSubmit}>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        const submitType = e.nativeEvent.submitter.name;
+        formik.setFieldValue('submitType', submitType, false);
+        formik.handleSubmit(e);
+      }}>
+
         <Box sx={{ p: 3 }}>
           <Typography
             align="center"
@@ -368,18 +395,36 @@ export const CalendarEventDialog = (props) => {
           </Button>
 
           )}
+          {event?.waitlist_participants?.includes(user.id) && (
+            <Button sx={{ color: 'red' }} onClick={() => handleDeleteFromWaitlist()}>
+            Desapuntarse de lista de espera
+          </Button>
+
+          )}
           <Box sx={{ flexGrow: 1 }} />
           <Button onClick={onClose}>
             Cancelar
           </Button>
-          {!event?.participants?.includes(user.id) && (
+          {(!event?.participants?.includes(user.id) && event?.capacity>event?.participants.length) && (
           <Button
             disabled={formik.isSubmitting}
+            name="signup"
             sx={{ ml: 1 }}
             type="submit"
             variant="contained"
           >
             Apuntarse
+          </Button>
+        )}
+        {(!event?.participants?.includes(user.id) && event?.capacity<=event?.participants.length && !event?.waitlist_participants?.includes(user.id)) && (
+          <Button
+            disabled={formik.isSubmitting}
+            name="waitlist"
+            sx={{ ml: 1 }}
+            type="submit"
+            variant="contained"
+          >
+            Apuntarse a lista de espera
           </Button>
         )}
         </Box>

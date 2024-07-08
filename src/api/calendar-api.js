@@ -21,11 +21,12 @@ class CalendarApi {
         const startDate = new Date(event.start_date).getTime();
         const endDate = new Date(event.end_date).getTime();
         const isUserParticipant = event.participants.includes(user.id)
+        const isUserWaitlisted = event.waitlist_participants.includes(user.id) && startDate>new Date()
         return {
           ...event,
           start: startDate,
           end: endDate,
-          color: isUserParticipant ? '#00B32C' : '#B3000C'
+          color: isUserParticipant ? '#00B32C' : isUserWaitlisted? '#FFA500' :'#B3000C'
       };
     })
       return events
@@ -206,50 +207,10 @@ async deleteEvent(request) {
     }
   }
 
-  async addCustomerToEvent(request) { // desde página cliente => si la capacidad está llena pasa a lista de espera
-    const {event, user: participants} = request
-    if(event.participants.length<event.capacity){
-      try {
-        const accessToken = localStorage.getItem('accessToken')
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${event.id}/add-participants/`,
-        {participants},
-        {
-          headers:
-          { Authorization: `JWT ${accessToken}`},
-                }, );
-        const event = response.data;
-        event.waitlist=false
-        return event
-      } catch (e){
-        console.log(request)
-        console.log(e)
-        throw new Error(e.response.data.detail);
-      }
-  
-    }else{ // tiene que ir a lista de espera
-      try{
-        const accessToken = localStorage.getItem('accessToken')
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${event.id}/add-to-waitlist/`,
-        {participants},
-        {
-          headers:
-          { Authorization: `JWT ${accessToken}`},
-                }, );
-        const event = response.data;
-        event.waitlist=true;
-        return event
-      } catch (e){
-        console.log(request)
-        console.log(e)
-        throw new Error(e.response.data.detail);
-      }
-    }
-  }
 
   async addAssistCustomersToEvent(request) {
-    const {eventId, customers_ok: participants} = request
+    const {eventId, participants: participants} = request
     try {
-      // console.log("trying getting the access Token")
       console.log({participants})
       const accessToken = localStorage.getItem('accessToken')
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${eventId}/mark-participants-assisted/`,
@@ -348,6 +309,59 @@ async deleteEvent(request) {
       throw new Error(e.response.data.detail);
     }
   }
+
+  async getEventWaitList(event_id) {
+    try {
+        const accessToken = localStorage.getItem('accessToken')
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_ROOT}/api/${event_id}/waitlist/`, 
+      {
+        headers: 
+        { Authorization: `JWT ${accessToken}`},
+              }, );
+
+    const waitlist = response.data;
+    return waitlist
+    } catch (e){
+      console.log(e)
+      throw new Error(e.response.data.detail);
+    }
+  }
+  async addAccountsToEventWaitList(request) {
+    const {eventId, participants} = request
+    try {
+      const accessToken = localStorage.getItem('accessToken')
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${eventId}/add-to-waitlist/`,
+        {participants},
+        {
+          headers:
+          { Authorization: `JWT ${accessToken}`},
+                }, );
+        console.log(response)
+        const event = response.data;
+        return event
+    } catch (e){
+      console.log(e)
+      throw new Error(e.response.data.detail);
+    }
+  }
+  async removeAccountFromEventWaitList(request) {
+    const {eventId, customers: participants} = request
+    try {
+      const accessToken = localStorage.getItem('accessToken')
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_ROOT}/api/1/events/${eventId}/remove-from-waitlist/`,
+      {participants},
+      {
+        headers:
+        { Authorization: `JWT ${accessToken}`},
+              }, );
+      const event = response.data;
+      return event
+    } catch (e){
+      console.log(e)
+      throw new Error(e.response.data.detail);
+    }
+  }
+
 
 }
 
